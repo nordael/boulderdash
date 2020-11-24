@@ -1,2 +1,0 @@
-# boulderdash
-new game project
