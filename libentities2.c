@@ -4,10 +4,10 @@
 #include <stdlib.h>
 
 
-void init_wall( wall_t *wall, entity_t this_type ){
+void init_wall( wall_t *wall, entype_t this_type ){
 
     wall->x = wall->y = 0;
-    frames = 0;
+    wall->frames = 0;
     wall->etype = this_type;
 
     switch(this_type){
@@ -43,7 +43,7 @@ void init_gem( gem_t *gem ){
     gem->dx = gem->dy = 0;
 }
 
-void init_rock( boulder_t *rock ){
+void init_rock( rock_t *rock ){
     rock->moving = FALSE;
     rock->x = rock->y = 0;
     rock->dx = rock->dy = 0;
@@ -57,14 +57,16 @@ void init_doll( rockford_t *doll ){
     doll->respawn = 120;
     doll->frames = 0;
     doll->x = doll->y = 0;
-    doll->dx = doll->dx =  0;
+    doll->dx = 0; 
+    doll->dx =  0;
 }
 
-void init_doll( door_t *door ){
+void init_door( door_t *door ){
     door->destructible = FALSE;
     door->open = FALSE;
     door->frames = 0;
-    door->x = door->y = 0;
+    door->x = 0;
+    door->y = 0;
 }
 
 //check for colision based on the sprite dimensions
@@ -76,4 +78,30 @@ int has_collision( int e1x, int e1y, int  e2x, int  e2y, int w, int h ){
     if( (e1y+h) < e2y ) return 0;
 
     return 1;
+}
+
+
+void set_wall_position( wall_t *wall, int x, int y ){
+    wall->x = x;
+    wall->y = y;
+}
+
+void set_rock_position( rock_t *rock, int x, int y ){
+    rock->x = x;
+    rock->y = y;
+}
+
+void set_gem_position( gem_t *gem, int x, int y ){
+    gem->x = x;
+    gem->y = y;
+}
+
+void set_doll_position( rockford_t *doll, int x, int y ){
+    doll->x = x;
+    doll->y = y;
+}
+
+void set_door_position( door_t *door, int x, int y ){
+    door->x = x;
+    door->y = y;
 }

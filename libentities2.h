@@ -55,7 +55,7 @@ typedef struct rock{
     boolean_t moving;   //true when it falls
     int x, y;           //current position
     int dx, dy;         //velocity
-} boulder_t;
+} rock_t;
 
 typedef struct doll{
     int gems;               //diamonds collected. its zero if not the rockford
@@ -72,7 +72,7 @@ typedef struct doll{
 
 
 
-void init_wall( wall_t *wall, entity_t this_type );
+void init_wall( wall_t *wall, entype_t this_type );
 
 void init_gem( gem_t *gem );
 
@@ -80,7 +80,18 @@ void init_rock( rock_t *rock );
 
 void init_doll( rockford_t *doll );
 
-void init_doll( door_t *door );
+void init_door( door_t *door );
 
 int has_collision( int e1x, int e1y, int  e2x, int  e2y, int w, int h );
 
+void set_wall_position( wall_t *wall, int x, int y );
+
+void set_rock_position( rock_t *rock, int x, int y );
+
+void set_gem_position( gem_t *gem, int x, int y );
+
+void set_doll_position( rockford_t *doll, int x, int y );
+
+void set_door_position( door_t *door, int x, int y );
+
+#endif

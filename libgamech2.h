@@ -1,7 +1,7 @@
 #ifndef __LIBGAMECH2_H
 #define __LIBGAMECH2_H
 
-#include "libentities.h"
+#include "libentities2.h"
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_image.h>
 #include <allegro5/allegro_primitives.h>
@@ -14,6 +14,14 @@
 #define NGEMS 25
 #define NROCKS 127
 
+
+typedef enum {
+    PRESET,     //set ALLEGRO engine and other game stuff 
+    BEGIN,      //move to local game setup state
+    PLAYING,    //the game
+    ENDMATCH,   //reset game initial state
+    GAMEOVER    //finish game
+} gstate_t;
 
 typedef struct bmps{
     ALLEGRO_BITMAP *sprite_sheet;
@@ -34,7 +42,7 @@ typedef struct bmps{
     ALLEGRO_BITMAP *gem[8];
     ALLEGRO_BITMAP *yellow_num[10];
     ALLEGRO_BITMAP *white_num[10];
-} sprites_t
+} sprites_t;
 
 typedef struct game{
     long score;
