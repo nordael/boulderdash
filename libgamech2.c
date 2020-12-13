@@ -491,6 +491,7 @@ static void update_gems( game_t *game ){
             if( has_collision( dummy_gem.x, dummy_gem.y, game->wall[i].x, game->wall[i].y, s, s ) ){
                 if( game->wall[i].destroyed == FALSE ){
                     ABOVE_WALL = 1;
+                    game->gem[j].moving = FALSE;
                     break;
                 }
             }
@@ -501,6 +502,7 @@ static void update_gems( game_t *game ){
             for( i = 0; i < NROCKS; i++ ){
                 if( has_collision( dummy_gem.x, dummy_gem.y, game->rock[i].x, game->rock[i].y, s, s ) ){
                     ABOVE_ROCK = 1;
+                    game->gem[j].moving = FALSE;
                     break;
                 }                 
             }
@@ -511,6 +513,7 @@ static void update_gems( game_t *game ){
                 if( has_collision( dummy_gem.x, dummy_gem.y, game->gem[i].x, game->gem[i].y, s, s ) ){
                     if( game->gem[i].collect == TRUE  ){
                         ABOVE_GEM = 1;
+                        game->gem[j].moving = FALSE;
                         break;
                     }
                 }                   
@@ -521,10 +524,8 @@ static void update_gems( game_t *game ){
             game->gem[j].moving = TRUE;
 
 
-        if( game->gem[j].moving == TRUE ){
+        if( game->gem[j].moving == TRUE )
             game->gem[j].y += ( game->frames % 5 == 0 ) ? s :0;
-            game->gem[j].moving = FALSE;
-        }
     }
 
 }
@@ -548,6 +549,7 @@ static void update_boulder( game_t *game ){
             if( has_collision( rdummy.x, rdummy.y, game->wall[i].x, game->wall[i].y, s, s ) ){
                 if( game->wall[i].destroyed == FALSE ){
                     ABOVE_WALL = 1;
+                    game->rock[j].moving = FALSE;
                     break;
                 }
             }
@@ -557,6 +559,7 @@ static void update_boulder( game_t *game ){
             for( i = 0; i < NROCKS; i++ ){
                 if( has_collision( rdummy.x, rdummy.y, game->rock[i].x, game->rock[i].y, s, s ) ){
                     ABOVE_ROCK = 1;
+                    game->rock[j].moving = FALSE;
                     break;
                 }
             }
@@ -567,20 +570,24 @@ static void update_boulder( game_t *game ){
                 if( has_collision( rdummy.x, rdummy.y, game->gem[i].x, game->gem[i].y, s, s ) ){
                     if( game->gem[i].collect == TRUE  ){
                         ABOVE_GEM = 1;
+                        game->rock[j].moving = FALSE;
                         break;
                     }
                 }
             }
         }
 
-        if( !ABOVE_WALL && !ABOVE_GEM && !ABOVE_ROCK )
-            game->rock[j].moving = TRUE;
-
-        
-        if ( game->rock[j].moving == TRUE ){
-            game->rock[j].y += ( game->frames % 5 == 0 ) ? s : 0;
-            game->rock[j].moving = FALSE;
+        if( !ABOVE_WALL && !ABOVE_GEM && !ABOVE_ROCK ){
+            if( has_collision( rdummy.x, rdummy.y, game->doll.x, game->doll.y, s, s ) ){
+                if( game->rock[j].moving == TRUE )
+                    game->doll.alive = FALSE;
+            }else{
+                game->rock[j].moving = TRUE;
+            }
         }
+
+        if ( game->rock[j].moving == TRUE )
+            game->rock[j].y += ( game->frames % 5 == 0 ) ? s : 0;
    }
 
 }
@@ -589,12 +596,12 @@ static void bd_update_map( game_t *game ){
 
     if( game->doll.alive == FALSE ) return;
 
-    update_score(game); //ok
-    update_timer(game); //ok
-    update_door(game);  //ok
-    update_wall(game);  //ok
-    update_gems(game);  //ok
-    update_doll(game);  //ok
+    update_score(game); 
+    update_timer(game); 
+    update_door(game);  
+    update_wall(game);  
+    update_gems(game);  
+    update_doll(game);
     update_boulder(game);
     
 }
