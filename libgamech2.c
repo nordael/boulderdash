@@ -239,6 +239,7 @@ static int has_found_wall( rockford_t doll, wall_t *wall ){
     return 0;
 }
 
+//check if has collided with a rock
 static int has_found_rock( rockford_t doll, rock_t *rock ){
     int i, s;
     s = SPRITE_SIZE;
@@ -255,12 +256,19 @@ static int has_found_rock( rockford_t doll, rock_t *rock ){
 static int should_doll_move( game_t *game, rockford_t doll, int step_x, int step_y ){
 
     rockford_t dummy;
+    int s;
 
+    s = SPRITE_SIZE;
     dummy.x = doll.x + step_x;
     dummy.y = doll.y + step_y;
 
     if( has_found_wall( dummy, game->wall ) > 1 ) return 0; // found a not diggable wall
     if( has_found_rock( dummy, game->rock ) ) return 0;
+    
+    if( has_collision( dummy.x, dummy.y, game->exit.x, game->exit.y, s, s ) 
+        && game->exit.open == FALSE ){
+        return 0;
+    }
 
     return 1;
 
@@ -442,7 +450,8 @@ static void update_doll( game_t *game  ){
         
     }
 
-    if( doll_found_gem( game->doll, game->gem ) ) //check for collision with a gem and update it
+    //check for collision with a gem and update it
+    if( doll_found_gem( game->doll, game->gem ) ) 
         game->doll.gems++;
 
 }
