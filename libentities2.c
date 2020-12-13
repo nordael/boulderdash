@@ -1,7 +1,5 @@
 
 #include "libentities2.h"
-#include <stdio.h>
-#include <stdlib.h>
 
 
 void init_wall( wall_t *wall, entype_t this_type ){
@@ -59,7 +57,7 @@ void init_doll( rockford_t *doll ){
     doll->alive = TRUE;
     doll->moving = FALSE;
     doll->grab = FALSE;
-    doll->respawn = 120;
+    doll->respawn = 3;
     doll->frames = 0;
     doll->up_to_down = 0;
     doll->left_to_right = 0;

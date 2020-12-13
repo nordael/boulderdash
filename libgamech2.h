@@ -49,6 +49,7 @@ typedef struct bmps{
 
 typedef struct game{
     long score;
+    long *best;
     int clock;          //counts the time remaining
     int goal;           //the number of gems to be found
     int total_gems;

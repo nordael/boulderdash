@@ -1,12 +1,11 @@
 
 #include <stdio.h>
-#include <stdio.h>
 #include "libgamech2.h"
-
 
 
 /*************GAME SUPPORT FUNCTIONS *********************/
 
+//read the the file containing map
 static char *load_map(){
 
     char* map_code;
@@ -35,7 +34,76 @@ static char *load_map(){
 
 }
 
-//untested
+static long* load_scores(){
+    const int MAX = 10;
+    int i;
+    long *best_scores;
+    char magic[2];
+
+    FILE * iscr;
+
+    best_scores = malloc( sizeof(long)*MAX );
+
+    if( best_scores == NULL )
+        fprintf( stderr, "FALHA AO ALOCAR MEMORIA"), exit(1);
+    
+    memset( best_scores, 0, sizeof( long ) );
+
+    iscr = fopen("./resources/scores.bds", "r");
+    
+    if( iscr == NULL )
+        fprintf( stderr, "FALHA AO ABRIR ARQUIVO"), exit(1);
+    
+    fread( magic, sizeof(char), 2, iscr );
+
+    if( magic[0] != 'B' || magic[1] != 'S')
+        fprintf( stderr, "ARQUIVO CORROMPIDO OU INVALIDO"), exit(1);
+        
+    //read the score from file
+    for( i = 0; i < MAX; i++ )
+        fscanf( iscr, "%ld\n", &best_scores[i] );
+    
+    fclose(iscr);
+    
+    return best_scores;
+}
+
+static void store_scores( long *best_scores ){
+    
+    const int MAX = 10;
+
+    char magic[2];
+    FILE *oscr;
+    int i,j, max;
+    long tmp;
+
+    oscr = fopen("./resources/scores.bds", "w");
+    
+    if( oscr == NULL )
+        fprintf( stderr, "FALHA AO ABRIR ARQUIVO"), exit(1);
+
+    //sort to save
+    for( i = 0; i < MAX; i++ ){
+        max = i;
+        for( j = i+1; j < MAX; j++ ){
+            if( best_scores[max] < best_scores[j] )
+                max = j;
+        }
+        tmp = best_scores[i];
+        best_scores[i] = best_scores[max];
+        best_scores[max] = tmp;
+    }
+
+    magic[0]='B'; magic[1] = 'S';
+    fwrite( magic, sizeof(char), 2, oscr );
+    
+    for( i = 0; i < MAX; i++ )
+        fprintf( oscr, "%ld\n", best_scores[i] );
+
+    fclose(oscr);
+}
+
+//cut the main sprite sheet to make the game sprites
 static ALLEGRO_BITMAP* sprite_cut( ALLEGRO_BITMAP *this_sheet, int x, int y, int w, int h ){
     
     ALLEGRO_BITMAP *new_sprite;
@@ -47,7 +115,7 @@ static ALLEGRO_BITMAP* sprite_cut( ALLEGRO_BITMAP *this_sheet, int x, int y, int
     return new_sprite;
 }
 
-//untested
+//load sprites
 static void load_sprites( sprites_t *game_sprites ){
     
     int i, s;
@@ -94,6 +162,7 @@ static void load_sprites( sprites_t *game_sprites ){
 
 }
 
+//dispose all sprites
 static void unload_sprites( sprites_t *game_sprites ){
     
     int i;
@@ -132,6 +201,7 @@ static void unload_sprites( sprites_t *game_sprites ){
     al_destroy_bitmap( game_sprites->sprite_sheet );
 }
 
+//generate the elements of the map
 static void create_game_map( game_t *game ){
     
     int i,w,r,g;
@@ -188,27 +258,29 @@ static void create_game_map( game_t *game ){
     free (map_code);
 }
 
-//unfinished
+//just build the game
 static game_t *create_game(){
     
-    game_t *bdgame;
+    game_t *game;
 
-    bdgame = malloc( sizeof( game_t ) );
-    if( !bdgame )
+    game = malloc( sizeof( game_t ) );
+    if( !game )
         fprintf( stderr, "ERRO AO ALOCAR MEMORIA"), exit(1);
 
     //initialize the keyboard map for game control
-    memset( bdgame->key, 0, sizeof( bdgame->key ) );
+    memset( game->key, 0, sizeof( game->key ) );
    
-    create_game_map( bdgame );    
-    load_sprites( &bdgame->bd_sprites );
-    bdgame->score = 0;
-    bdgame->frames = 0;
-    bdgame->clock = CLOCK_COUNT;
-    bdgame->goal = 8*NGEMS/10;
-    bdgame->total_gems = NGEMS;
+    create_game_map( game );    
+    load_sprites( &game->bd_sprites );
+    game->best = load_scores();
+
+    game->score = 0;
+    game->frames = 0;
+    game->clock = CLOCK_COUNT;
+    game->goal = 8*NGEMS/10;
+    game->total_gems = NGEMS;
     
-    return bdgame;
+    return game;
 }
 
 
@@ -388,7 +460,7 @@ static void update_timer( game_t *game ){
         game->clock--;
 }
 
-//not tested
+//refresh the rockford status
 static void update_doll( game_t *game  ){
 
     if(game->doll.alive == FALSE) return;
@@ -456,6 +528,7 @@ static void update_doll( game_t *game  ){
 
 }
 
+//refresh the status of any wall
 static void update_wall( game_t* game ){
     int i, s;
 
@@ -479,7 +552,7 @@ static void update_door( game_t * game ){
     
 }
 
-//move any gem if there is a empty space under it
+//refressh gem status 
 static void update_gems( game_t *game ){
     int i, j, s;
     int ABOVE_WALL, ABOVE_ROCK, ABOVE_GEM;
@@ -539,6 +612,7 @@ static void update_gems( game_t *game ){
 
 }
 
+//refresh rock status
 static void update_boulder( game_t *game ){
     int i, j, s;
     rock_t rdummy;
@@ -601,6 +675,7 @@ static void update_boulder( game_t *game ){
 
 }
 
+//refresh all status map
 static void bd_update_map( game_t *game ){
 
     if( game->doll.alive == FALSE ) return;
@@ -751,6 +826,7 @@ static void draw_gems( game_t *game ){
 
 }
 
+//draww the rockford dying
 static void draw_doll_dying( game_t *game ){
     int frame, dying;
 
@@ -793,9 +869,73 @@ static void draw_doll( game_t *game ){
 
 }
 
+static void draw_doll_spawing( game_t *game ){
+
+    int frame, c = 2; 
+
+    frame = (game->doll.frames++)/FRAMERATIO;
+    
+    game->doll.respawn -= ( frame % 2 );
+
+    if( game->doll.frames < 0 )
+        game->doll.frames = 0;
+
+    al_draw_bitmap( game->bd_sprites.door[frame%c], game->doll.x, game->doll.y, 0 );
+}
+
+static void show_best_scores( game_t *game ){
+
+    ALLEGRO_FONT* font = al_create_builtin_font();
+
+    int x, y, i, count;
+    long digit;
+
+    x = (MAP_WIDTH*SPRITE_SIZE)/3;
+    y = (MAP_HIGHT*SPRITE_SIZE)/3;
+
+    game->best[9] = game->score;
+    
+    i = 0; 
+
+    al_draw_text(font, al_map_rgb(255, 255, 255), x, 4*SPRITE_SIZE, 0, "BESTS");
+
+    //Draw the scores
+    while( i < 10 ){
+        digit = game->best[i];
+        x = (MAP_WIDTH*SPRITE_SIZE)/3;
+        count = 7; //maximum digits of score
+        while( digit ){
+            if( i == 9 )
+                al_draw_bitmap( game->bd_sprites.yellow_num[digit%10], x, y ,0 );
+            else
+                al_draw_bitmap( game->bd_sprites.white_num[digit%10], x, y ,0 );
+
+            x -= SPRITE_SIZE;
+            digit /= 10 ;
+            count--;
+        }
+        
+        while( count > 0 ){
+            --count;
+            if( i == 9 )
+                al_draw_bitmap( game->bd_sprites.yellow_num[digit%10], x, y ,0 );
+            else
+                al_draw_bitmap( game->bd_sprites.white_num[digit%10], x, y ,0 );
+            x -= SPRITE_SIZE;
+        }
+
+        y += SPRITE_SIZE;
+        i++;
+    }
+}
+
 //draw the elements of the map
 static void bd_draw_map( game_t * game ){
 
+    if( game->doll.alive == FALSE ){
+        show_best_scores( game );
+        return;
+    }
     /*game status display*/
     draw_score( game );
     draw_clock( game );
@@ -806,8 +946,13 @@ static void bd_draw_map( game_t * game ){
     draw_boulder( game );
     draw_door( game );
     draw_gems( game );
-    draw_doll( game );
-    draw_doll_dying( game );
+    
+    if( game->doll.respawn > 0 ){
+        draw_doll_spawing( game );
+    } else {
+        draw_doll( game );
+        draw_doll_dying( game );
+    }
 }
 
 
@@ -833,7 +978,7 @@ static void show_instructions( game_t *game ){
 
 /************** GAME STATE FUNCTIONS **************/
 
-
+//starting essential addons from ALLEGRO 5 and create the game map
 void ignition( gstate_t *state, game_t **game ){
 
     //game_t *game = (*this_game);
@@ -854,6 +999,7 @@ void ignition( gstate_t *state, game_t **game ){
     (*state) = BEGIN;
 }
 
+//intilizing some essential resources from ALLEGRO 5
 void start_game( gstate_t *state, game_t *game ){
 
     game->timer = al_create_timer(1.0 / FRAMERATIO);
@@ -873,6 +1019,7 @@ void start_game( gstate_t *state, game_t *game ){
     *state = PLAYING;
 }
 
+//the game itself
 void running_game( gstate_t *state, game_t *game ){
 
     ALLEGRO_EVENT event;
@@ -884,10 +1031,7 @@ void running_game( gstate_t *state, game_t *game ){
         
         al_wait_for_event( game->queue, &event );
         switch( event.type ){ 
-            case ALLEGRO_EVENT_TIMER:
-
-                if( game->doll.alive == FALSE )
-                    *state = ENDMATCH;
+            case ALLEGRO_EVENT_TIMER:                  
 
                 //clears the background before drawings
                 al_clear_to_color(al_map_rgb_f(0, 0, 0));
@@ -895,11 +1039,11 @@ void running_game( gstate_t *state, game_t *game ){
                 if( game->key[ALLEGRO_KEY_H] || game->key[ALLEGRO_KEY_F1] ){
                     //show instructions
                     show_instructions( game );
-                }else{                    
+                }else{                  
                     //all functions that update status
-                    bd_update_map(game);
+                    bd_update_map( game );
                     //all functions that draw sprites
-                    bd_draw_map(game);
+                    bd_draw_map( game );
                     al_flip_display();
                 }
                 if( game->key[ALLEGRO_KEY_ESCAPE] )
@@ -914,6 +1058,7 @@ void running_game( gstate_t *state, game_t *game ){
                 break;
         }
         refresh_keyboard( &event, game );
+
         if( *state == GAMEOVER || *state == ENDMATCH )
             break;
     }
@@ -935,6 +1080,7 @@ void ending_match( gstate_t *state, game_t *game ){
     game->frames = 0;
     game->score = 0;
 
+    store_scores( game->best );
     create_game_map(game);
 
     *state = PLAYING;
@@ -949,4 +1095,6 @@ void end_game( game_t *game ){
     al_destroy_event_queue( game->queue );
     
     unload_sprites( &game->bd_sprites );    
+    free( game->best );
+    free( game );
 }

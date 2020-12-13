@@ -1,4 +1,5 @@
-/*This is contain the main game loop*/
+
+/*This is contain the main state machine of the game*/
 
 
 #include "libgamech2.h"
