@@ -58,15 +58,15 @@ static void load_sprites( sprites_t *game_sprites ){
 
     s = SPRITE_SIZE;
 
-    game_sprites->door[0] = sprite_cut( game_sprites->sprite_sheet, 2*s, 6*s , s, s);
-    game_sprites->door[1] = sprite_cut( game_sprites->sprite_sheet, 2*s, 7*s , s, s);
+    game_sprites->door[0] = sprite_cut( game_sprites->sprite_sheet, s, 6*s , s, s);
+    game_sprites->door[1] = sprite_cut( game_sprites->sprite_sheet, 2*s, 6*s , s, s);
     
     for( i = 0; i < 4; i++)    
         game_sprites->mv_rockford_dying[i] = sprite_cut( game_sprites->sprite_sheet, i*s, 0, s, s );
 
     for( i = 0; i < 8; i++){
-        game_sprites->mv_rockford_up[i] = sprite_cut( game_sprites->sprite_sheet, i*s, 2*s, s, s );
-        game_sprites->mv_rockford_left[i] = sprite_cut( game_sprites->sprite_sheet, i*s, 2*s, s, s );
+        game_sprites->mv_rockford_up[i] = sprite_cut( game_sprites->sprite_sheet, i*s, 4*s, s, s );
+        game_sprites->mv_rockford_left[i] = sprite_cut( game_sprites->sprite_sheet, i*s, 4*s, s, s );
         game_sprites->mv_rockford_down[i] = sprite_cut( game_sprites->sprite_sheet, i*s, 5*s, s, s );
         game_sprites->mv_rockford_right[i] = sprite_cut( game_sprites->sprite_sheet, i*s, 5*s, s, s );        
         game_sprites->gem[i] = sprite_cut( game_sprites->sprite_sheet, i*s, 10*s, s, s );
@@ -85,6 +85,7 @@ static void load_sprites( sprites_t *game_sprites ){
 
     game_sprites->boulder = sprite_cut( game_sprites->sprite_sheet, 0, 7*s , s, s);
     game_sprites->dig_wall = sprite_cut( game_sprites->sprite_sheet, s, 7*s , s, s);
+    game_sprites->empty = sprite_cut( game_sprites->sprite_sheet, 0, 6*s , s, s);
     game_sprites->iron_wall = sprite_cut( game_sprites->sprite_sheet, s, 6*s , s, s);
     game_sprites->stone_wall = sprite_cut( game_sprites->sprite_sheet, 3*s, 6*s , s, s);
     game_sprites->white_gem = sprite_cut( game_sprites->sprite_sheet, 8*s, 2*s , s, s/2);
@@ -123,6 +124,7 @@ static void unload_sprites( sprites_t *game_sprites ){
     al_destroy_bitmap( game_sprites->boulder );
     al_destroy_bitmap( game_sprites->dig_wall );
     al_destroy_bitmap( game_sprites->iron_wall );
+    al_destroy_bitmap( game_sprites->empty );
     al_destroy_bitmap( game_sprites->stone_wall );
     al_destroy_bitmap( game_sprites->white_gem ); 
     al_destroy_bitmap( game_sprites->yellow_gem );
@@ -148,24 +150,29 @@ static void create_game_map( game_t *game ){
         c[0] = map_code[i], c[1] ='\0';
         switch( atoi( c ) ){
             case DIGGABLE:
-                init_wall( &game->wall[w++], DIGGABLE );
+                init_wall( &game->wall[w], DIGGABLE );
                 set_wall_position( (game->wall+w), x, y );
+                w++;
                 break;
             case STONE:
-                init_wall( &game->wall[w++], STONE );
+                init_wall( &game->wall[w], STONE );
                 set_wall_position( (game->wall+w), x, y );
+                w++;
                 break;
             case IRON:
-                init_wall( &game->wall[w++], IRON );
+                init_wall( &game->wall[w], IRON );
                 set_wall_position( (game->wall+w), x, y );
+                w++;
                 break;
             case BOULDER:
-                init_rock( &game->rock[r++] );
+                init_rock( &game->rock[r] );
                 set_rock_position( (game->rock+r), x, y );
+                r++;
                 break; 
             case GEM:
-                init_gem( &game->gem[g++] );
+                init_gem( &game->gem[g] );
                 set_gem_position( (game->gem+g), x, y );
+                g++;
                 break;
             case DOLL:
                 init_doll( &game->doll );
@@ -197,7 +204,7 @@ static game_t *create_game(){
     load_sprites( &bdgame->bd_sprites );
     bdgame->score = 0;
     bdgame->frames = 0;
-    bdgame->clock = 150;
+    bdgame->clock = CLOCK_COUNT;
     bdgame->goal = 8*NGEMS/10;
     bdgame->total_gems = NGEMS;
     
@@ -207,25 +214,44 @@ static game_t *create_game(){
 
 /************* GAME CHECKING FUNCTIONS  ********************/
 
+//return an integer 1 if has found a solid wall, 0 otherwise
+//if 0, change the status of the wall to destroyed
 static int has_found_wall( rockford_t doll, wall_t *wall ){
     int i, s;
     s = SPRITE_SIZE;
 
     for( i = 0; i < NWALLS; i++ ){
+
         if ( has_collision( doll.x, doll.y, wall[i].x, wall[i].y, s, s ) ){
+
             switch ( wall[i].etype ){
                 case IRON:
-                case STONE: return 1; break;
-                case DIGGABLE: return 0; break;
+                case STONE: return 2; break;
+                case DIGGABLE: 
+                    if( wall[i].destroyed == FALSE ) return 1;
+                    else return 0;
+                    break;
                 default: break;
             }
         }
     }
     
     return 0;
-
 }
 
+static int has_found_rock( rockford_t doll, rock_t *rock ){
+    int i, s;
+    s = SPRITE_SIZE;
+
+    for( i = 0; i < NROCKS; i++ ){
+        if ( has_collision( doll.x, doll.y, rock[i].x, rock[i].y, s, s ) )
+             return 1;
+    }
+    
+    return 0;
+}
+
+//check if can move ahead (return 1) or not (return 0)
 static int should_doll_move( game_t *game, rockford_t doll, int step_x, int step_y ){
 
     rockford_t dummy;
@@ -233,21 +259,21 @@ static int should_doll_move( game_t *game, rockford_t doll, int step_x, int step
     dummy.x = doll.x + step_x;
     dummy.y = doll.y + step_y;
 
-    if( !has_found_wall( dummy, game->wall ) ) return 1;
+    if( has_found_wall( dummy, game->wall ) > 1 ) return 0; // found a not diggable wall
+    if( has_found_rock( dummy, game->rock ) ) return 0;
 
-    return 0;
+    return 1;
 
 }
 
+//check if rockford found a gem and set it as found
 static int doll_found_gem(  rockford_t doll, gem_t *gem ){
     int i, s;
     s = SPRITE_SIZE;
 
-    if( gem->collect == FALSE )
-        return 0;
-
     for( i = 0; i < NGEMS; i++ ){
-        if ( has_collision( doll.x, doll.y, gem[i].x, gem[i].y, s, s ) ){
+
+        if ( gem[i].collect == TRUE && has_collision( doll.x, doll.y, gem[i].x, gem[i].y, s, s ) ){
             gem[i].collect = FALSE;
             return 1;
         }
@@ -258,7 +284,7 @@ static int doll_found_gem(  rockford_t doll, gem_t *gem ){
 
 /************** GAME UPDATE STATE FUNCTIONS **************/
 
-
+//update the keyboard listener
 static void refresh_keyboard( ALLEGRO_EVENT *event, game_t *game ){
     const int KEY_PRESSED = 1;
     const int KEY_RELEASED = 2;
@@ -283,36 +309,45 @@ static void refresh_keyboard( ALLEGRO_EVENT *event, game_t *game ){
 }
 
 //check for collision with rock and try move it
-static void move_with_rock( rockford_t *doll, rock_t *rock, int step ){
+static void move_with_rock( game_t *game, int step ){
     rockford_t dummy_d;
     rock_t *dummy_b;
     int i, s;
 
-
-    dummy_d.x = doll->x + step;
-    dummy_d.y = doll->y;
     s = SPRITE_SIZE;
+
+    dummy_b = NULL;                         //the boulder address to be tested
+    dummy_d.x = game->doll.x + step;        //ghost dool which walks and sees the path
+    dummy_d.y = game->doll.y;
+    
     
     //if rockford finds a boulder, try grab it
     for( i = 0; i < NROCKS; i++ )
-        if( has_collision( dummy_d.x, dummy_d.y, rock[i].x, rock[i].y, s, s ) )
-            doll->grab = TRUE, dummy_b = (rock+i); 
+        if( has_collision( dummy_d.x, dummy_d.y, game->rock[i].x, game->rock[i].y, s, s ) )
+            game->doll.grab = TRUE, dummy_b = (game->rock+i); 
 
-    //check if a grabbed boulder collide with another. If it collides, do nothing
-    for( i = 0; i < NROCKS; i++ ){
-        if( has_collision( dummy_b->x+step, dummy_b->y, rock[i].x, rock[i].y, s, s ) ){
-            doll->grab = FALSE;
-            return;
-        }
-        else 
-            break;
+    if( dummy_b == NULL ){
+       game->doll.grab = FALSE;
+       return;
     }
 
-    doll->x += step;
-    dummy_b->x += step;
+    //get the position of the rock ahead
+    dummy_d.x = dummy_b->x + step;
+    dummy_d.y = dummy_b->y; 
+
+    //hasn't found some wall
+    if( !has_found_wall( dummy_d, game->wall ) &&
+        !has_found_rock( dummy_d, game->rock ) &&
+        !doll_found_gem( dummy_d, game->gem ) ) {
+
+        game->doll.x += step;
+        dummy_b->x += step;     //move the exactly rock grabbeds
+    }
+        
+    game->doll.grab = FALSE;    
 }
 
-//not tested
+//refresh the score display
 static void update_score( game_t * game ){
     int s;
 
@@ -328,18 +363,21 @@ static void update_score( game_t * game ){
     }
 }
 
+//decrease the time remaining
 static void update_timer( game_t *game ){
-
-    if( game->doll.moving == FALSE && game->exit.open == TRUE )
-        return;
 
     if( !game->clock ){
         game->doll.alive = FALSE; 
         return;
     }
 
+    game->frames++;
+    if( game->frames < 0 )
+        game->frames = 0;
+
     //this must not count every 1/20 time tic
-    game->clock--;
+    if ( game->frames % FRAMERATIO == 0 )
+        game->clock--;
 }
 
 //not tested
@@ -347,35 +385,47 @@ static void update_doll( game_t *game  ){
 
     if(game->doll.alive == FALSE) return;
 
-    if( game->doll.moving == FALSE && game->exit.open == TRUE ) return;
 
     //if( game->doll.respawn )
     //  game->doll.respawn--, return;
 
+    game->doll.up_to_down = 0;
+    game->doll.left_to_right = 0;
+
     if( game->key[ALLEGRO_KEY_G] ){
 
-        if( game->key[ALLEGRO_KEY_LEFT] )
-            game->doll.left_to_right = -1, move_with_rock( &game->doll, game->rock, -SPRITE_SIZE  );
-        if( game->key[ALLEGRO_KEY_RIGHT])
-            game->doll.left_to_right = 1, move_with_rock( &game->doll, game->rock, -SPRITE_SIZE  );
+        if( game->key[ALLEGRO_KEY_LEFT] ){
+            game->doll.left_to_right = -1; 
+            move_with_rock( game, -SPRITE_SIZE  );
+        }else if( game->key[ALLEGRO_KEY_RIGHT]){
+            game->doll.left_to_right = 1;
+            move_with_rock( game, SPRITE_SIZE  );
+        }
         
     }else{
         
-        if( game->key[ALLEGRO_KEY_UP] || game->key[ALLEGRO_KEY_I] )
-            game->doll.up_to_down = 1,
-            game->doll.y -= ( should_doll_move( game, game->doll, 0, -SPRITE_SIZE ) ) ? SPRITE_SIZE :0 ;
+        game->doll.grab = FALSE;
 
-        if( game->key[ALLEGRO_KEY_DOWN] || game->key[ALLEGRO_KEY_K] )
-            game->doll.up_to_down = 1,
-            game->doll.y+= ( should_doll_move( game, game->doll, 0, SPRITE_SIZE ) ) ? SPRITE_SIZE :0 ;
+        if( game->key[ALLEGRO_KEY_UP] || game->key[ALLEGRO_KEY_I] ){
+            game->doll.up_to_down = -1; //change the sprite moviment
+            if( should_doll_move( game, game->doll, 0, -SPRITE_SIZE ) )
+                game->doll.y -= SPRITE_SIZE;
 
-        if( game->key[ALLEGRO_KEY_LEFT] || game->key[ALLEGRO_KEY_L] )
-            game->doll.left_to_right = -1, 
-            game->doll.x-= ( should_doll_move( game, game->doll, -SPRITE_SIZE, 0 ) ) ? SPRITE_SIZE :0 ;
+        }else if( game->key[ALLEGRO_KEY_DOWN] || game->key[ALLEGRO_KEY_K] ){
+                game->doll.up_to_down = 1;
+                if ( should_doll_move( game, game->doll, 0, SPRITE_SIZE ) )
+                    game->doll.y += SPRITE_SIZE;
 
-        if( game->key[ALLEGRO_KEY_RIGHT] || game->key[ALLEGRO_KEY_J] )
-            game->doll.left_to_right = 1,
-            game->doll.x+= ( should_doll_move( game, game->doll, SPRITE_SIZE, 0 ) ) ? SPRITE_SIZE :0 ;
+        } else if( game->key[ALLEGRO_KEY_LEFT] || game->key[ALLEGRO_KEY_J] ){
+            game->doll.left_to_right = -1; //change the sprite moviment
+            if ( should_doll_move( game, game->doll, -SPRITE_SIZE, 0 ) )
+                game->doll.x -= SPRITE_SIZE;
+                
+        }else if( game->key[ALLEGRO_KEY_RIGHT] || game->key[ALLEGRO_KEY_L] ){
+                game->doll.left_to_right = 1;
+                if ( should_doll_move( game, game->doll, SPRITE_SIZE, 0 ) )
+                    game->doll.x += SPRITE_SIZE;
+        }
     }
     
     //can't pass through iron wall
@@ -412,72 +462,141 @@ static void update_wall( game_t* game ){
     }
 }
 
-//untested
+//change the door status open
 static void update_door( game_t * game ){
 
     if( game->doll.gems >= game->goal )
         game->exit.open = TRUE;
+    
 }
 
+//move any gem if there is a empty space under it
 static void update_gems( game_t *game ){
     int i, j, s;
-
-    if( game->doll.moving == FALSE && game->exit.open == TRUE ) return;
+    int ABOVE_WALL, ABOVE_ROCK, ABOVE_GEM;
+    gem_t dummy_gem;
 
     s = SPRITE_SIZE;
+    
+   for( j = 0; j < NGEMS; j++ ){
+       dummy_gem.x = game->gem[j].x;
+       dummy_gem.y = game->gem[j].y + s;
 
-   for( i = 0; i < NWALLS; i++ ){
-       for( j = 0; j < NGEMS; j++ ){
-
-            if( game->gem[i].collect == FALSE )
-                continue;
-
-            if( !has_collision( game->gem[i].x, game->gem[i].y+s, game->wall[i].x, game->wall[i].y, s, s ) ){
-                game->gem[i].moving = TRUE; 
-                game->gem[i].y += s;
-            }
-
-            if( has_collision( game->gem[i].x, game->gem[i].y+s, game->doll.x, game->doll.y, s, s ) &&
-                               game->gem[i].moving == TRUE ){
-                game->doll.gems++; 
-                game->gem[i].y += s; 
-                game->gem[i].collect = FALSE;
-            }
-
-            if( game->wall[i].etype == DIGGABLE || game->wall[i].etype == STONE )
-                game->rock[i].moving = FALSE;                
+       if( game->gem[j].collect == FALSE )
+            continue;
         
-            //if I call recursively by moving to left ou right, what would be the stop condition?
+        ABOVE_WALL = 0; ABOVE_ROCK = 0; ABOVE_GEM = 0;
+
+        for( i = 0; i < NWALLS; i++ ){
+            if( has_collision( dummy_gem.x, dummy_gem.y, game->wall[i].x, game->wall[i].y, s, s ) ){
+                if( game->wall[i].destroyed == FALSE ){
+                    ABOVE_WALL = 1;
+                    break;
+                }
+            }
         }
-   }
+
+        if( !ABOVE_WALL ){
+
+            for( i = 0; i < NROCKS; i++ ){
+                if( has_collision( dummy_gem.x, dummy_gem.y, game->rock[i].x, game->rock[i].y, s, s ) ){
+                    ABOVE_ROCK = 1;
+                    break;
+                }                 
+            }
+        }
+
+        if( !ABOVE_ROCK && !ABOVE_WALL ){            
+            for( i = 0; i < NGEMS; i++ ){
+                if( has_collision( dummy_gem.x, dummy_gem.y, game->gem[i].x, game->gem[i].y, s, s ) ){
+                    if( game->gem[i].collect == TRUE  ){
+                        ABOVE_GEM = 1;
+                        break;
+                    }
+                }                   
+            }
+        }
+
+        if( !ABOVE_GEM && !ABOVE_ROCK && !ABOVE_WALL )
+            game->gem[j].moving = TRUE;
+
+
+        if( game->gem[j].moving == TRUE ){
+            game->gem[j].y += ( game->frames % 5 == 0 ) ? s :0;
+            game->gem[j].moving = FALSE;
+        }
+    }
 
 }
 
 static void update_boulder( game_t *game ){
-   int i, j, s;
+    int i, j, s;
+    rock_t rdummy;
+    int ABOVE_ROCK, ABOVE_GEM, ABOVE_WALL;
 
-    if( game->doll.moving == FALSE && game->exit.open == TRUE )return;
 
     s = SPRITE_SIZE;
+  
 
-   for( i = 0; i < NWALLS; i++ ){
-       for( j = 0; j < NROCKS; j++ ){
-            if( !has_collision( game->rock[i].x, game->rock[i].y+s, game->wall[i].x, game->wall[i].y, s, s ) ){
-                game->rock[i].moving = TRUE;
-                game->rock[i].y += s;
-            } else{
-                if( has_collision( game->rock[i].x, game->rock[i].y+s, game->doll.x, game->doll.y, s, s ) ){
-                    game->doll.alive = FALSE;
-                    game->rock[i].y += s;
+   for( j = 0; j < NROCKS; j++ ){
+       rdummy.x = game->rock[j].x;
+       rdummy.y = game->rock[j].y + s;
+
+       ABOVE_WALL = 0; ABOVE_ROCK = 0; ABOVE_GEM = 0;
+
+       for( i = 0; i < NWALLS; i++ ){
+            if( has_collision( rdummy.x, rdummy.y, game->wall[i].x, game->wall[i].y, s, s ) ){
+                if( game->wall[i].destroyed == FALSE ){
+                    ABOVE_WALL = 1;
+                    break;
                 }
-
-                if( game->wall[i].etype == DIGGABLE || game->wall[i].etype == STONE )
-                    game->rock[i].moving = FALSE;                
             }
-            //if I call recursively by moving to left ou right, what would be the stop condition?
+        }
+
+        if( !ABOVE_WALL ){
+            for( i = 0; i < NROCKS; i++ ){
+                if( has_collision( rdummy.x, rdummy.y, game->rock[i].x, game->rock[i].y, s, s ) ){
+                    ABOVE_ROCK = 1;
+                    break;
+                }
+            }
+        }
+
+        if( !ABOVE_WALL && !ABOVE_ROCK ){
+            for( i = 0; i < NGEMS; i++ ){
+                if( has_collision( rdummy.x, rdummy.y, game->gem[i].x, game->gem[i].y, s, s ) ){
+                    if( game->gem[i].collect == TRUE  ){
+                        ABOVE_GEM = 1;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if( !ABOVE_WALL && !ABOVE_GEM && !ABOVE_ROCK )
+            game->rock[j].moving = TRUE;
+
+        
+        if ( game->rock[j].moving == TRUE ){
+            game->rock[j].y += ( game->frames % 5 == 0 ) ? s : 0;
+            game->rock[j].moving = FALSE;
         }
    }
 
+}
+
+static void bd_update_map( game_t *game ){
+
+    if( game->doll.alive == FALSE ) return;
+
+    update_score(game); //ok
+    update_timer(game); //ok
+    update_door(game);  //ok
+    update_wall(game);  //ok
+    update_gems(game);  //ok
+    update_doll(game);  //ok
+    update_boulder(game);
+    
 }
 
 /************** GAME DRAWING FUNCTIONS **************/
@@ -488,7 +607,9 @@ static void draw_score( game_t *game ){
     int x, y, i;
 
     digit = game->score;
-    i = 0; y = 16; x = (MAP_WIDTH-3)*SPRITE_SIZE;   
+    i = 0; 
+    x = (MAP_WIDTH-3)*SPRITE_SIZE;
+    y = SPRITE_SIZE/2;    
     
     while( i < 7 ){
         al_draw_bitmap( game->bd_sprites.white_num[digit%10], x, y ,0 );
@@ -517,6 +638,7 @@ static void draw_clock( game_t *game ){
 
 }
 
+//draw the total gems collected by rockford
 static void draw_gems_collected( game_t *game ){
     int digit, y;
 
@@ -534,7 +656,7 @@ static void draw_gems_collected( game_t *game ){
 static void draw_gems_goal( game_t *game ){
     int digit, y;
 
-    digit = game->goal;
+    digit = game->total_gems;
     y = SPRITE_SIZE/2;
 
     al_draw_bitmap( game->bd_sprites.yellow_gem, 3*SPRITE_SIZE, y, 0 );
@@ -544,6 +666,7 @@ static void draw_gems_goal( game_t *game ){
     
 }
 
+//draw all the walls 
 static void draw_wall( game_t *game ){
     int i;
     
@@ -567,6 +690,7 @@ static void draw_wall( game_t *game ){
     }
 }
 
+//draw the killer boulders
 static void draw_boulder( game_t *game ){
     int i;
     
@@ -575,17 +699,22 @@ static void draw_boulder( game_t *game ){
     }
 }
 
+//draw the door, but firstly hidden
 static void draw_door( game_t *game ){
     int frame, c = 2;
    
     if( game->exit.frames < 0 )
         game->exit.frames = 0;
 
-    frame = game->exit.frames++;
+    frame = (game->exit.frames++)/FRAMERATIO;
     
-    al_draw_bitmap( game->bd_sprites.door[frame%c], game->exit.x, game->exit.y, 0 );
+    if( game->exit.open == TRUE )
+        al_draw_bitmap( game->bd_sprites.door[frame%c], game->exit.x, game->exit.y, 0 );
+    else
+        al_draw_bitmap( game->bd_sprites.door[0], game->exit.x, game->exit.y, 0 );
 }
 
+//draw the gems animated
 static void draw_gems( game_t *game ){
     int i, frame, c;
 
@@ -598,16 +727,36 @@ static void draw_gems( game_t *game ){
 
         frame = game->gem[i].frames++;
 
-        al_draw_bitmap( game->bd_sprites.gem[ ( frame % c ) ], 
+        if( game->gem[i].collect == TRUE )
+            al_draw_bitmap( game->bd_sprites.gem[ ( frame % c ) ], 
                         game->gem[i].x, game->gem[i].y, 0);
         
     }
 
 }
 
+static void draw_doll_dying( game_t *game ){
+    int frame, dying;
+
+    if( game->doll.alive == TRUE ) return;
+
+    if( game->doll.frames < 0 ) 
+        game->doll.frames = 0;
+
+    dying = 4;
+    frame = game->doll.frames++;
+    if( game->doll.frames < 0 ) game->doll.frames = 0;
+
+    al_draw_bitmap( game->bd_sprites.mv_rockford_dying[frame%dying], game->doll.x, game->doll.y, 0 );
+
+}
+
+//draw the rockford animated
 static void draw_doll( game_t *game ){
     int wait, up_right, left_down;
     int frame;
+
+    if( game->doll.alive == FALSE ) return;
 
     wait = 24;
     up_right = left_down = 8;
@@ -628,18 +777,42 @@ static void draw_doll( game_t *game ){
 
 }
 
+//draw the elements of the map
 static void bd_draw_map( game_t * game ){
 
+    /*game status display*/
     draw_score( game );
     draw_clock( game );
     draw_gems_goal( game );
     draw_gems_collected( game );
+    /*game stuff*/
     draw_wall( game );
-    /*draw_boulder( game );
+    draw_boulder( game );
     draw_door( game );
     draw_gems( game );
     draw_doll( game );
-    */
+    draw_doll_dying( game );
+}
+
+
+//show instructions of the game
+static void show_instructions( game_t *game ){
+
+    ALLEGRO_FONT* font = al_create_builtin_font();
+
+    int x = (MAP_HIGHT*SPRITE_SIZE)/4;
+
+    al_draw_text(font, al_map_rgb(255, 255, 255), x, 4*SPRITE_SIZE, 0, "Hello stranger!");
+    al_draw_text(font, al_map_rgb(255, 255, 255), x, 6*SPRITE_SIZE, 0, "Use as teclas de setas do seu PC ou as letras I, J, K, L para mover Rockford");
+    al_draw_text(font, al_map_rgb(255, 255, 255), x, 8*SPRITE_SIZE, 0, "Para mover uma rocha livre, use as teclas G e J ou G e L");
+    al_draw_text(font, al_map_rgb(255, 255, 255), x, 10*SPRITE_SIZE, 0, "Para reiniciar o jogo tecle ENTER. Para sair tecle ESC");
+    al_draw_text(font, al_map_rgb(255, 255, 255), x, 12*SPRITE_SIZE, 0, "Você tem um tempo restrito para pegar as gemas, use-o com sabedoria ou...");
+    al_draw_text(font, al_map_rgb(255, 255, 255), x, 14*SPRITE_SIZE, 0, "Segure F1 ou H para abrir esta ajuda");
+
+    al_draw_text(font, al_map_rgb(255, 255, 255), x, 16*SPRITE_SIZE, 16*SPRITE_SIZE, "JULIO L. MARTINS");
+    
+    al_flip_display();
+    al_destroy_font(font);
 }
 
 /************** GAME STATE FUNCTIONS **************/
@@ -657,6 +830,8 @@ void ignition( gstate_t *state, game_t **game ){
         fprintf(stderr, "ALLEGRO IMAGE ADDON NAO INICIADO"), exit(1);
     if ( !al_init_primitives_addon() )
         fprintf(stderr, "ALLEGRO PRIMITIVES ADDON NAO INICIADO"), exit(1);
+    if( !al_init_font_addon() )
+        fprintf(stderr, "ALLEGRO FONT ADDON NAO INICIADO"), exit(1);
 
     (*game) = create_game();
 
@@ -665,7 +840,7 @@ void ignition( gstate_t *state, game_t **game ){
 
 void start_game( gstate_t *state, game_t *game ){
 
-    game->timer = al_create_timer(1.0 / 20.0);
+    game->timer = al_create_timer(1.0 / FRAMERATIO);
     game->queue = al_create_event_queue();
     game->disp = al_create_display( MAP_WIDTH*SPRITE_SIZE, (MAP_HIGHT+1)*SPRITE_SIZE );
     
@@ -678,6 +853,7 @@ void start_game( gstate_t *state, game_t *game ){
     al_set_new_display_option(ALLEGRO_SAMPLES, 8, ALLEGRO_SUGGEST);
     al_set_new_bitmap_flags(ALLEGRO_MIN_LINEAR | ALLEGRO_MAG_LINEAR);
 
+
     *state = PLAYING;
 }
 
@@ -685,38 +861,36 @@ void running_game( gstate_t *state, game_t *game ){
 
     ALLEGRO_EVENT event;
     
-    al_flush_event_queue(game->queue);
-    bd_draw_map(game);
-    al_flip_display();
-    
+    al_flush_event_queue(game->queue);  
     al_start_timer( game->timer );
 
     for(;;){
-        break;
+        
         al_wait_for_event( game->queue, &event );
         switch( event.type ){ 
             case ALLEGRO_EVENT_TIMER:
-                update_wall(game);
-                update_boulder(game);
-                update_gems(game);
-                update_door(game);
-                update_score(game);
-                update_timer(game);
-                update_doll(game);
-                /*game status display*/
-                draw_gems_goal(game);
-                draw_gems_collected(game);
-                draw_score(game);
-                draw_clock(game);
-                /*game stuff*/
-                draw_door(game);
-                draw_wall(game);
-                draw_boulder(game);
-                draw_gems(game);
-                draw_doll(game);                
+
+                if( game->doll.alive == FALSE )
+                    *state = ENDMATCH;
+
+                //clears the background before drawings
+                al_clear_to_color(al_map_rgb_f(0, 0, 0));
                 
+                if( game->key[ALLEGRO_KEY_H] || game->key[ALLEGRO_KEY_F1] ){
+                    //show instructions
+                    show_instructions( game );
+                }else{                    
+                    //all functions that update status
+                    bd_update_map(game);
+                    //all functions that draw sprites
+                    bd_draw_map(game);
+                    al_flip_display();
+                }
                 if( game->key[ALLEGRO_KEY_ESCAPE] )
-                    *state = GAMEOVER;
+                   *state = GAMEOVER;
+
+                if( game->key[ALLEGRO_KEY_ENTER] )
+                    *state = ENDMATCH;
 
                 break;                
             case ALLEGRO_EVENT_DISPLAY_CLOSE:
@@ -724,48 +898,35 @@ void running_game( gstate_t *state, game_t *game ){
                 break;
         }
         refresh_keyboard( &event, game );
-        al_flip_display();
-        if( *state == GAMEOVER )
+        if( *state == GAMEOVER || *state == ENDMATCH )
             break;
     }
     al_stop_timer( game->timer );
     if( *state == GAMEOVER )
         return;
     
-    *state = PLAYING;
-    //*state = ENDMATCH;
+    *state = ENDMATCH;
 }
 
 /*restart the initial state of every element of 
  *the game and wait a time for next match to restart
  */
 void ending_match( gstate_t *state, game_t *game ){
-    int i;
 
-    //should save the score and show it later
+    game->clock = CLOCK_COUNT;
+    game->goal = 8*NGEMS/10;
+    game->total_gems = NGEMS;
+    game->frames = 0;
+    game->score = 0;
 
-    game->clock = 0;
-    game->goal = NGEMS;
-    //game->total_gems
-    //game->frame
-
-    init_doll( &game->doll );
-    init_door( &game->exit );
-    
-    for( i = 0; i < NWALLS; i++ )
-        init_wall( &game->wall[i], game->wall[i].etype );
-
-    for( i = 0; i < NGEMS; i++ )
-        init_gem( &game->gem[i] );
-
-    for( i = 0; i < NROCKS; i++ )
-        init_rock( &game->rock[i] );
+    create_game_map(game);
 
     *state = PLAYING;
 }
 
 //stop game: dealloc memory, turn off engine alegro
 void end_game( game_t *game ){
+    //should save the score and show it later
     
     al_destroy_display( game->disp );
     al_destroy_timer( game->timer );

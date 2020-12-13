@@ -6,7 +6,8 @@
 
 void init_wall( wall_t *wall, entype_t this_type ){
 
-    wall->x = wall->y = 0;
+    wall->x = 0;
+    wall->y = 0;
     wall->frames = 0;
     wall->etype = this_type;
 
@@ -39,14 +40,18 @@ void init_gem( gem_t *gem ){
     gem->moving = FALSE;
     gem->collect = TRUE;
     gem->frames = 0;
-    gem->x = gem->y = 0;
-    gem->dx = gem->dy = 0;
+    gem->x = 0;
+    gem->y = 0;
+    gem->dx = 0;
+    gem->dy = 0;
 }
 
 void init_rock( rock_t *rock ){
     rock->moving = FALSE;
-    rock->x = rock->y = 0;
-    rock->dx = rock->dy = 0;
+    rock->x = 0;
+    rock->y = 0;
+    rock->dx = 0;
+    rock->dy = 0;
 }
 
 void init_doll( rockford_t *doll ){
@@ -56,7 +61,10 @@ void init_doll( rockford_t *doll ){
     doll->grab = FALSE;
     doll->respawn = 120;
     doll->frames = 0;
-    doll->x = doll->y = 0;
+    doll->up_to_down = 0;
+    doll->left_to_right = 0;
+    doll->x = 0;
+    doll->y = 0;
     doll->dx = 0; 
     doll->dx =  0;
 }
@@ -69,13 +77,13 @@ void init_door( door_t *door ){
     door->y = 0;
 }
 
-//check for colision based on the sprite dimensions
-int has_collision( int e1x, int e1y, int  e2x, int  e2y, int w, int h ){
+//check for colisions
+int has_collision( int ex1, int ey1, int ex2, int ey2, int w, int h ){
 
-    if( e1x > (e2x+w) ) return 0;
-    if( (e1x+w) < e2x ) return 0;
-    if( e1y > (e2y+h) ) return 0;
-    if( (e1y+h) < e2y ) return 0;
+    if( ex1 > (ex2+w-1) ) return 0;
+    if( (ex1+w-1) < ex2 ) return 0;
+    if( ey1 > (ey2+h-1) ) return 0;
+    if( (ey1+h-1) < ey2 ) return 0;
 
     return 1;
 }

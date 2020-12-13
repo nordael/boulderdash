@@ -1,7 +1,7 @@
 /*This is contain the main game loop*/
 
 
-#include "libgamech.h"
+#include "libgamech2.h"
 
 
 int main(){

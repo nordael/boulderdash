@@ -5,6 +5,7 @@
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_image.h>
 #include <allegro5/allegro_primitives.h>
+#include <allegro5/allegro_font.h>
 
 
 #define MAP_WIDTH 40
@@ -13,6 +14,8 @@
 #define NWALLS 120+477+130
 #define NGEMS 25
 #define NROCKS 127
+#define FRAMERATIO 20
+#define CLOCK_COUNT 150
 
 
 typedef enum {
