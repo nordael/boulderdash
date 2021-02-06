@@ -6,7 +6,7 @@
 2. Install requirements
   - GCC Compiler 9 or greater
   - Allegro 5: Run on terminal **sudo apt-get install liballegro5-dev** to install Allegro on your system.
-  - Utilitary **make**
+  - Tool kit **make**
   
  3. Run the command: **make Makefile all**
  4. Run **./bdash** and enjoy it.
